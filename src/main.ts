@@ -23,7 +23,12 @@ async function bootstrap(): Promise<void> {
   app.useLogger(logger);
 
   // Security middleware
-  app.use(helmet());
+  app.use(
+    helmet({
+      crossOriginEmbedderPolicy: false,
+      contentSecurityPolicy: false,
+    }),
+  );
 
   // CORS configuration
   app.enableCors({
