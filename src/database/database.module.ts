@@ -30,9 +30,10 @@ import { dataSourceOptions } from './data-source';
           logging: dbConfig.logging,
           ssl: dbConfig.ssl
             ? {
-                rejectUnauthorized: false,
-              }
+              rejectUnauthorized: false,
+            }
             : false,
+          autoLoadEntities: true,
         } as TypeOrmModuleOptions;
       },
       inject: [AppConfigService],
@@ -40,4 +41,4 @@ import { dataSourceOptions } from './data-source';
   ],
   exports: [TypeOrmModule],
 })
-export class DatabaseModule {}
+export class DatabaseModule { }

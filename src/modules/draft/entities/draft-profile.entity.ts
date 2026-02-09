@@ -1,4 +1,4 @@
-import { Entity, Column, Index, OneToMany } from 'typeorm';
+import { Entity, Column, Index, OneToMany, BeforeInsert } from 'typeorm';
 import { BaseEntityWithoutSoftDelete } from '@database/entities/base.entity';
 import { Gender } from '@common/enums/gender.enum';
 import { DraftStatus } from '@common/enums/draft-status.enum';
@@ -34,7 +34,15 @@ export class DraftProfileEntity extends BaseEntityWithoutSoftDelete {
   @Column({ type: 'enum', enum: Gender, nullable: true })
   seeking?: Gender;
 
-  @Column({ name: 'date_of_birth', type: 'date', nullable: true })
+  @Column({
+    name: 'date_of_birth',
+    type: 'date',
+    nullable: true,
+    transformer: {
+      to: (value: Date | string | null) => value,
+      from: (value: string | null) => (value ? new Date(value) : null),
+    },
+  })
   dateOfBirth?: Date;
 
   @Column({ name: 'rules_accepted', type: 'boolean', default: false })
@@ -50,9 +58,15 @@ export class DraftProfileEntity extends BaseEntityWithoutSoftDelete {
   @Column({
     name: 'expires_at',
     type: 'timestamp with time zone',
-    default: () => "CURRENT_TIMESTAMP + INTERVAL '24 hours'",
   })
   expiresAt: Date;
+
+  @BeforeInsert()
+  setExpiration() {
+    const date = new Date();
+    date.setDate(date.getDate() + 1);
+    this.expiresAt = date;
+  }
 
   @OneToMany(() => DraftPhotoEntity, photo => photo.draft, {
     cascade: true,

@@ -21,7 +21,7 @@ export class OtpEntity {
   @Column({ name: 'country_code', type: 'varchar', length: 10, nullable: true })
   countryCode?: string;
 
-  @Column({ type: 'varchar', length: 6 })
+  @Column({ type: 'varchar', length: 6, default: '000000' })
   code: string;
 
   @Column({ name: 'expires_at', type: 'timestamp with time zone' })

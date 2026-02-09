@@ -64,7 +64,15 @@ export class UserEntity extends BaseEntity {
   @Column({ type: 'enum', enum: Gender, nullable: true })
   seeking?: Gender;
 
-  @Column({ name: 'date_of_birth', type: 'date', nullable: true })
+  @Column({
+    name: 'date_of_birth',
+    type: 'date',
+    nullable: true,
+    transformer: {
+      to: (value: Date | string | null) => value,
+      from: (value: string | null) => (value ? new Date(value) : null),
+    },
+  })
   dateOfBirth?: Date;
 
   @Column({ type: 'decimal', precision: 10, scale: 8, nullable: true })

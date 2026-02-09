@@ -18,7 +18,10 @@ export const dataSourceOptions: DataSourceOptions = {
   database: process.env.DB_DATABASE || 'enterprise_db',
 
   // Entity configuration
-  entities: [__dirname + '/entities/**/*.entity{.ts,.js}'],
+  entities: [
+    __dirname + '/entities/**/*.entity{.ts,.js}',
+    __dirname + '/../modules/**/entities/*.entity{.ts,.js}',
+  ],
 
   // Migration configuration
   migrations: [__dirname + '/migrations/**/*{.ts,.js}'],

@@ -33,7 +33,7 @@ export class ProfileService {
     private readonly jwtService: JwtService,
     private readonly configService: AppConfigService,
     private readonly dataSource: DataSource,
-  ) {}
+  ) { }
 
   /**
    * Update draft profile (Steps 2-6, 8)
@@ -254,10 +254,22 @@ export class ProfileService {
    * Get draft by ID or throw
    */
   private async getDraftOrFail(userId: string): Promise<DraftProfileEntity> {
-    const draft = await this.draftRepository.findActiveById(userId);
+    const draft = await this.draftRepository.findOne({
+      where: {
+        id: userId,
+        status: DraftStatus.DRAFT,
+      },
+    });
+
     if (!draft) {
       throw new NotFoundException(createErrorResponse(ErrorCode.DRAFT_NOT_FOUND));
     }
+
+    // Check expiration manually if needed, or rely on a scheduled task to clean up
+    if (new Date() > draft.expiresAt) {
+      throw new NotFoundException(createErrorResponse(ErrorCode.DRAFT_NOT_FOUND));
+    }
+
     return draft;
   }
 

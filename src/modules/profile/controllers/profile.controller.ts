@@ -8,12 +8,12 @@ import {
   HttpCode,
   HttpStatus,
   UseInterceptors,
-  UploadedFile,
+  UploadedFiles,
   ParseUUIDPipe,
   BadRequestException,
   VERSION_NEUTRAL,
 } from '@nestjs/common';
-import { FileInterceptor } from '@nestjs/platform-express';
+import { AnyFilesInterceptor } from '@nestjs/platform-express';
 import {
   ApiTags,
   ApiOperation,
@@ -47,7 +47,7 @@ import { SuccessMessages, createErrorResponse } from '@common/constants/messages
 @Controller({ path: 'profile', version: VERSION_NEUTRAL })
 @ApiErrorResponses()
 export class ProfileController {
-  constructor(private readonly profileService: ProfileService) {}
+  constructor(private readonly profileService: ProfileService) { }
 
   /**
    * Steps 2-6, 8: Update profile fields
@@ -101,10 +101,10 @@ export class ProfileController {
   @Post(':userId/photos')
   @Public()
   @HttpCode(HttpStatus.OK)
-  @UseInterceptors(FileInterceptor('photo'))
+  @UseInterceptors(AnyFilesInterceptor())
   @ApiOperation({
-    summary: 'Upload photo',
-    description: 'Step 7: Upload a photo to the draft profile.',
+    summary: 'Upload photo(s)',
+    description: 'Step 7: Upload photo(s) to the draft profile. Supports single "photo" and batch "photos" fields.',
   })
   @ApiParam({ name: 'userId', description: 'Draft profile ID' })
   @ApiConsumes('multipart/form-data')
@@ -112,10 +112,10 @@ export class ProfileController {
     schema: {
       type: 'object',
       properties: {
-        photo: { type: 'string', format: 'binary' },
-        order: { type: 'integer', description: 'Photo order (optional)' },
+        photo: { type: 'string', format: 'binary', description: 'Single file upload' },
+        photos: { type: 'array', items: { type: 'string', format: 'binary' }, description: 'Batch upload' },
+        order: { type: 'integer', description: 'Photo order (optional, for single upload)' },
       },
-      required: ['photo'],
     },
   })
   @ApiResponse({
@@ -125,35 +125,51 @@ export class ProfileController {
   })
   async uploadPhoto(
     @Param('userId', ParseUUIDPipe) userId: string,
-    @UploadedFile() file: Express.Multer.File,
-    @Body('order') order?: string,
+    @UploadedFiles() files: Array<Express.Multer.File>,
+    @Body() body: { order?: string },
   ) {
-    if (!file) {
+    if (!files || files.length === 0) {
       throw new BadRequestException(
-        createErrorResponse(ErrorCode.VALIDATION_ERROR, 'Photo file is required'),
+        createErrorResponse(ErrorCode.VALIDATION_ERROR, 'No photos uploaded'),
       );
     }
 
-    // Validate file type
+    // Validate all files first
     const allowedMimeTypes = ['image/jpeg', 'image/png', 'image/webp'];
-    if (!allowedMimeTypes.includes(file.mimetype)) {
-      throw new BadRequestException(createErrorResponse(ErrorCode.INVALID_FILE_TYPE));
-    }
-
-    // Validate file size (5MB max)
     const maxSize = 5 * 1024 * 1024;
-    if (file.size > maxSize) {
-      throw new BadRequestException(createErrorResponse(ErrorCode.FILE_SIZE_EXCEEDED));
+
+    for (const file of files) {
+      if (!allowedMimeTypes.includes(file.mimetype)) {
+        throw new BadRequestException(createErrorResponse(ErrorCode.INVALID_FILE_TYPE));
+      }
+      if (file.size > maxSize) {
+        throw new BadRequestException(createErrorResponse(ErrorCode.FILE_SIZE_EXCEEDED));
+      }
     }
 
-    // In production, upload to cloud storage (S3, GCS, etc.)
-    // For now, generate a placeholder URL
-    const photoUrl = `https://storage.example.com/photos/${userId}/${Date.now()}-${file.originalname}`;
+    let result;
 
-    const parsedOrder = order !== undefined ? parseInt(order, 10) : undefined;
+    // Process each file
+    for (const file of files) {
+      // In production, upload to cloud storage (S3, GCS, etc.)
+      // For now, generate a placeholder URL
+      const photoUrl = `https://storage.example.com/photos/${userId}/${Date.now()}-${file.originalname}`;
 
-    const result = await this.profileService.uploadPhoto(userId, photoUrl, parsedOrder);
+      // Only respect order if single file is uploaded, otherwise append
+      const parsedOrder = (files.length === 1 && body.order !== undefined)
+        ? parseInt(body.order, 10)
+        : undefined;
 
+      result = await this.profileService.uploadPhoto(userId, photoUrl, parsedOrder);
+    }
+
+    if (!result) {
+      throw new BadRequestException(
+        createErrorResponse(ErrorCode.VALIDATION_ERROR, 'No photos processed'),
+      );
+    }
+
+    // Return result of the last upload (contains updated list)
     return withMessage(
       {
         photo: {
