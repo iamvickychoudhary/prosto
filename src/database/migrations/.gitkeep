@@ -1,0 +1,4 @@
+# Migrations directory
+# Run migrations with: npm run migration:run
+# Generate migrations with: npm run migration:generate -- src/database/migrations/MigrationName
+
