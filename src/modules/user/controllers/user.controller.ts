@@ -10,6 +10,7 @@ import {
   UseGuards,
   HttpCode,
   HttpStatus,
+  VERSION_NEUTRAL,
 } from '@nestjs/common';
 import { ApiTags, ApiOperation, ApiBearerAuth, ApiParam, ApiQuery } from '@nestjs/swagger';
 import { UserService } from '../services/user.service';
@@ -20,6 +21,7 @@ import { PaginationDto } from '@common/dto/pagination.dto';
 import { JwtAuthGuard } from '@modules/auth/guards/jwt-auth.guard';
 import { RolesGuard } from '@modules/auth/guards/roles.guard';
 import { Roles } from '@modules/auth/decorators/roles.decorator';
+import { Public } from '@modules/auth/decorators/public.decorator';
 import { UserRole } from '@common/enums/user-role.enum';
 import { ParseUUIDPipe } from '@core/pipes/validation.pipe';
 import {
@@ -35,12 +37,12 @@ import {
  * All business logic is delegated to UserService.
  */
 @ApiTags('users')
-@Controller({ path: 'users', version: '1' })
+@Controller({ path: 'users', version: VERSION_NEUTRAL })
 @UseGuards(JwtAuthGuard, RolesGuard)
 @ApiBearerAuth('JWT-auth')
 @ApiErrorResponses()
 export class UserController {
-  constructor(private readonly userService: UserService) {}
+  constructor(private readonly userService: UserService) { }
 
   @Get()
   @Roles(UserRole.ADMIN, UserRole.MANAGER)
@@ -63,6 +65,69 @@ export class UserController {
   @ApiOperation({ summary: 'Get user statistics' })
   async getStatistics() {
     return this.userService.getStatistics();
+  }
+
+  /**
+   * Get user profile by ID (requires authentication)
+   * Returns complete user data
+   */
+  @Get('profile/:id')
+  @ApiOperation({
+    summary: 'Get user profile by ID',
+    description: 'Returns complete user profile data including photos, preferences, and location. Authentication required.'
+  })
+  @ApiParam({ name: 'id', description: 'User UUID' })
+  async getUserProfile(@Param('id', ParseUUIDPipe) id: string) {
+    const user = await this.userService.findByIdOrFail(id);
+
+    // Return complete user data formatted consistently with login response
+    return {
+      id: user.id,
+      email: user.email,
+      phone: user.phone ? `${user.countryCode}${user.phone}` : undefined,
+      country_code: user.countryCode,
+      first_name: user.firstName,
+      last_name: user.lastName,
+      full_name: user.fullName,
+      role: user.role,
+      status: user.status,
+      avatar_url: user.avatarUrl,
+      email_verified: user.emailVerified,
+      email_verified_at: user.emailVerifiedAt,
+      last_login_at: user.lastLoginAt,
+      gender: user.gender,
+      seeking: user.seeking,
+      date_of_birth: user.dateOfBirth,
+      age: user.age,
+      latitude: user.latitude,
+      longitude: user.longitude,
+      location_skipped: user.locationSkipped,
+      // Extended profile fields
+      about_me: user.aboutMe,
+      current_work: user.currentWork,
+      school: user.school,
+      looking_for: user.lookingFor,
+      pets: user.pets,
+      children: user.children,
+      astrological_sign: user.astrologicalSign,
+      religion: user.religion,
+      education: user.education,
+      height: user.height,
+      body_type: user.bodyType,
+      exercise: user.exercise,
+      drink: user.drink,
+      smoker: user.smoker,
+      marijuana: user.marijuana,
+      photos: user.photos?.map(photo => ({
+        id: photo.id,
+        url: photo.photoUrl,
+        order: photo.photoOrder,
+        is_primary: photo.isPrimary,
+        created_at: photo.createdAt,
+      })) || [],
+      created_at: user.createdAt,
+      updated_at: user.updatedAt,
+    };
   }
 
   @Get(':id')

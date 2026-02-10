@@ -84,6 +84,52 @@ export class UserEntity extends BaseEntity {
   @Column({ name: 'location_skipped', type: 'boolean', default: false })
   locationSkipped: boolean;
 
+  // Extended dating profile fields
+  @Column({ name: 'about_me', type: 'text', nullable: true })
+  aboutMe?: string;
+
+  @Column({ name: 'current_work', type: 'varchar', length: 255, nullable: true })
+  currentWork?: string;
+
+  @Column({ type: 'varchar', length: 255, nullable: true })
+  school?: string;
+
+  @Column({ name: 'looking_for', type: 'simple-array', nullable: true })
+  lookingFor?: string[];
+
+  @Column({ type: 'simple-array', nullable: true })
+  pets?: string[];
+
+  @Column({ type: 'varchar', length: 100, nullable: true })
+  children?: string;
+
+  @Column({ name: 'astrological_sign', type: 'varchar', length: 50, nullable: true })
+  astrologicalSign?: string;
+
+  @Column({ type: 'varchar', length: 100, nullable: true })
+  religion?: string;
+
+  @Column({ type: 'varchar', length: 100, nullable: true })
+  education?: string;
+
+  @Column({ type: 'varchar', length: 50, nullable: true })
+  height?: string;
+
+  @Column({ name: 'body_type', type: 'varchar', length: 50, nullable: true })
+  bodyType?: string;
+
+  @Column({ type: 'varchar', length: 50, nullable: true })
+  exercise?: string;
+
+  @Column({ type: 'varchar', length: 50, nullable: true })
+  drink?: string;
+
+  @Column({ type: 'varchar', length: 50, nullable: true })
+  smoker?: string;
+
+  @Column({ type: 'varchar', length: 50, nullable: true })
+  marijuana?: string;
+
   @OneToMany(() => UserPhotoEntity, photo => photo.user, {
     cascade: true,
     eager: true,

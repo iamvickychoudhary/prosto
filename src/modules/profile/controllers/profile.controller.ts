@@ -92,6 +92,95 @@ export class ProfileController {
     }
     if (dto.rules_accepted !== undefined) response.rules_accepted = draft.rulesAccepted;
 
+    // Extended profile fields
+    if (dto.about_me !== undefined) response.about_me = draft.aboutMe;
+    if (dto.current_work !== undefined) response.current_work = draft.currentWork;
+    if (dto.school !== undefined) response.school = draft.school;
+    if (dto.looking_for !== undefined) response.looking_for = draft.lookingFor;
+    if (dto.pets !== undefined) response.pets = draft.pets;
+    if (dto.children !== undefined) response.children = draft.children;
+    if (dto.astrological_sign !== undefined) response.astrological_sign = draft.astrologicalSign;
+    if (dto.religion !== undefined) response.religion = draft.religion;
+    if (dto.education !== undefined) response.education = draft.education;
+    if (dto.height !== undefined) response.height = draft.height;
+    if (dto.body_type !== undefined) response.body_type = draft.bodyType;
+    if (dto.exercise !== undefined) response.exercise = draft.exercise;
+    if (dto.drink !== undefined) response.drink = draft.drink;
+    if (dto.smoker !== undefined) response.smoker = draft.smoker;
+    if (dto.marijuana !== undefined) response.marijuana = draft.marijuana;
+
+    return withMessage(response, SuccessMessages[SuccessCode.PROFILE_UPDATED]);
+  }
+
+  /**
+   * Update existing user profile (for logged-in users)
+   */
+  @Patch('user/:userId')
+  @Public()
+  @HttpCode(HttpStatus.OK)
+  @ApiOperation({
+    summary: 'Update user profile',
+    description: 'Update existing user profile with extended fields. Use this endpoint for updating profiles after registration is complete.',
+  })
+  @ApiParam({ name: 'userId', description: 'User ID' })
+  @ApiBody({ type: UpdateProfileDto })
+  @ApiResponse({
+    status: 200,
+    description: SuccessMessages[SuccessCode.PROFILE_UPDATED],
+    type: ProfileUpdateResponseDto,
+  })
+  async updateUserProfile(
+    @Param('userId', ParseUUIDPipe) userId: string,
+    @Body() dto: UpdateProfileDto,
+  ) {
+    const user = await this.profileService.updateUserProfile(userId, dto);
+
+    const response: Record<string, unknown> = { user_id: user.id };
+
+    // Include updated fields in response
+    if (dto.first_name !== undefined) response.first_name = user.firstName;
+    if (dto.gender !== undefined) response.gender = user.gender;
+    if (dto.seeking !== undefined) response.seeking = user.seeking;
+    if (dto.date_of_birth !== undefined) {
+      response.date_of_birth = user.dateOfBirth?.toISOString().split('T')[0];
+      response.age = user.age;
+    }
+    if (dto.latitude !== undefined || dto.longitude !== undefined) {
+      response.latitude = user.latitude;
+      response.longitude = user.longitude;
+      response.location_skipped = user.locationSkipped;
+    }
+    if (dto.location_skipped !== undefined) {
+      response.location_skipped = user.locationSkipped;
+    }
+
+    // Extended profile fields
+    if (dto.about_me !== undefined) response.about_me = user.aboutMe;
+    if (dto.current_work !== undefined) response.current_work = user.currentWork;
+    if (dto.school !== undefined) response.school = user.school;
+    if (dto.looking_for !== undefined) response.looking_for = user.lookingFor;
+    if (dto.pets !== undefined) response.pets = user.pets;
+    if (dto.children !== undefined) response.children = user.children;
+    if (dto.astrological_sign !== undefined) response.astrological_sign = user.astrologicalSign;
+    if (dto.religion !== undefined) response.religion = user.religion;
+    if (dto.education !== undefined) response.education = user.education;
+    if (dto.height !== undefined) response.height = user.height;
+    if (dto.body_type !== undefined) response.body_type = user.bodyType;
+    if (dto.exercise !== undefined) response.exercise = user.exercise;
+    if (dto.drink !== undefined) response.drink = user.drink;
+    if (dto.smoker !== undefined) response.smoker = user.smoker;
+    if (dto.marijuana !== undefined) response.marijuana = user.marijuana;
+
+    // Include photos if they were updated
+    if (dto.photos !== undefined) {
+      response.photos = user.photos?.map(photo => ({
+        id: photo.id,
+        url: photo.photoUrl,
+        order: photo.photoOrder,
+        is_primary: photo.isPrimary,
+      })) ?? [];
+    }
+
     return withMessage(response, SuccessMessages[SuccessCode.PROFILE_UPDATED]);
   }
 

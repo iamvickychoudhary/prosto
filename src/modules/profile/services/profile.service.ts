@@ -42,6 +42,13 @@ export class ProfileService {
     // Validate draft exists
     await this.getDraftOrFail(userId);
 
+    return this.updateDraftProfile(userId, dto);
+  }
+
+  /**
+   * Update draft profile (during registration)
+   */
+  private async updateDraftProfile(userId: string, dto: UpdateProfileDto): Promise<DraftProfileEntity> {
     // Build update object
     const updateData: Partial<DraftProfileEntity> = {};
 
@@ -84,10 +91,111 @@ export class ProfileService {
       updateData.rulesAccepted = dto.rules_accepted;
     }
 
+    // Extended profile fields
+    if (dto.about_me !== undefined) updateData.aboutMe = dto.about_me;
+    if (dto.current_work !== undefined) updateData.currentWork = dto.current_work;
+    if (dto.school !== undefined) updateData.school = dto.school;
+    if (dto.looking_for !== undefined) updateData.lookingFor = dto.looking_for;
+    if (dto.pets !== undefined) updateData.pets = dto.pets;
+    if (dto.children !== undefined) updateData.children = dto.children;
+    if (dto.astrological_sign !== undefined) updateData.astrologicalSign = dto.astrological_sign;
+    if (dto.religion !== undefined) updateData.religion = dto.religion;
+    if (dto.education !== undefined) updateData.education = dto.education;
+    if (dto.height !== undefined) updateData.height = dto.height;
+    if (dto.body_type !== undefined) updateData.bodyType = dto.body_type;
+    if (dto.exercise !== undefined) updateData.exercise = dto.exercise;
+    if (dto.drink !== undefined) updateData.drink = dto.drink;
+    if (dto.smoker !== undefined) updateData.smoker = dto.smoker;
+    if (dto.marijuana !== undefined) updateData.marijuana = dto.marijuana;
+
     // Update draft
     await this.draftRepository.update(userId, updateData);
 
     return this.getDraftOrFail(userId);
+  }
+
+  /**
+   * Update existing user profile (after registration)
+   */
+  async updateUserProfile(userId: string, dto: UpdateProfileDto): Promise<UserEntity> {
+    const userRepo = this.dataSource.getRepository(UserEntity);
+
+    // Check if user exists
+    const user = await userRepo.findOne({ where: { id: userId }, relations: ['photos'] });
+    if (!user) {
+      throw new NotFoundException(createErrorResponse(ErrorCode.USER_NOT_FOUND));
+    }
+
+    // Build update object
+    const updateData: Partial<UserEntity> = {};
+
+    if (dto.first_name !== undefined) updateData.firstName = dto.first_name;
+    if (dto.gender !== undefined) updateData.gender = dto.gender;
+    if (dto.seeking !== undefined) updateData.seeking = dto.seeking;
+
+    if (dto.date_of_birth !== undefined) {
+      const dateOfBirth = new Date(dto.date_of_birth);
+      const age = this.calculateAge(dateOfBirth);
+      if (age < MIN_AGE) {
+        throw new BadRequestException(createErrorResponse(ErrorCode.AGE_RESTRICTION));
+      }
+      updateData.dateOfBirth = dateOfBirth;
+    }
+
+    if (dto.latitude !== undefined && dto.longitude !== undefined) {
+      updateData.latitude = dto.latitude;
+      updateData.longitude = dto.longitude;
+      updateData.locationSkipped = false;
+    }
+
+    if (dto.location_skipped === true) {
+      updateData.locationSkipped = true;
+      updateData.latitude = undefined;
+      updateData.longitude = undefined;
+    }
+
+    // Extended profile fields
+    if (dto.about_me !== undefined) updateData.aboutMe = dto.about_me;
+    if (dto.current_work !== undefined) updateData.currentWork = dto.current_work;
+    if (dto.school !== undefined) updateData.school = dto.school;
+    if (dto.looking_for !== undefined) updateData.lookingFor = dto.looking_for;
+    if (dto.pets !== undefined) updateData.pets = dto.pets;
+    if (dto.children !== undefined) updateData.children = dto.children;
+    if (dto.astrological_sign !== undefined) updateData.astrologicalSign = dto.astrological_sign;
+    if (dto.religion !== undefined) updateData.religion = dto.religion;
+    if (dto.education !== undefined) updateData.education = dto.education;
+    if (dto.height !== undefined) updateData.height = dto.height;
+    if (dto.body_type !== undefined) updateData.bodyType = dto.body_type;
+    if (dto.exercise !== undefined) updateData.exercise = dto.exercise;
+    if (dto.drink !== undefined) updateData.drink = dto.drink;
+    if (dto.smoker !== undefined) updateData.smoker = dto.smoker;
+    if (dto.marijuana !== undefined) updateData.marijuana = dto.marijuana;
+
+    // Update user
+    await userRepo.update(userId, updateData);
+
+    // Handle photos update if provided
+    if (dto.photos !== undefined && Array.isArray(dto.photos)) {
+      const userPhotoRepo = this.dataSource.getRepository(UserPhotoEntity);
+
+      // Delete all existing photos
+      await userPhotoRepo.delete({ userId });
+
+      // Create new photos
+      for (const photoData of dto.photos) {
+        const photo = userPhotoRepo.create({
+          userId,
+          photoUrl: photoData.url,
+          photoOrder: photoData.order,
+          isPrimary: photoData.order === 0, // First photo is primary
+        });
+        await userPhotoRepo.save(photo);
+      }
+    }
+
+    // Return updated user with photos
+    const updatedUser = await userRepo.findOne({ where: { id: userId }, relations: ['photos'] });
+    return updatedUser!;
   }
 
   /**
@@ -204,6 +312,22 @@ export class ProfileService {
         longitude: draft.longitude ? Number(draft.longitude) : undefined,
         locationSkipped: draft.locationSkipped,
         emailVerified: false,
+        // Extended profile fields
+        aboutMe: draft.aboutMe,
+        currentWork: draft.currentWork,
+        school: draft.school,
+        lookingFor: draft.lookingFor,
+        pets: draft.pets,
+        children: draft.children,
+        astrologicalSign: draft.astrologicalSign,
+        religion: draft.religion,
+        education: draft.education,
+        height: draft.height,
+        bodyType: draft.bodyType,
+        exercise: draft.exercise,
+        drink: draft.drink,
+        smoker: draft.smoker,
+        marijuana: draft.marijuana,
       });
 
       const savedUser = await userRepo.save(user);

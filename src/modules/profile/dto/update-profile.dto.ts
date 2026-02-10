@@ -5,6 +5,7 @@ import {
   IsDateString,
   IsNumber,
   IsBoolean,
+  IsArray,
   MinLength,
   MaxLength,
   Min,
@@ -102,4 +103,169 @@ export class UpdateProfileDto {
   @IsOptional()
   @IsBoolean()
   rules_accepted?: boolean;
+
+  // Extended dating profile fields
+  @ApiProperty({
+    example: 'I love hiking and exploring new places...',
+    description: 'About me section',
+    required: false,
+  })
+  @IsOptional()
+  @IsString()
+  about_me?: string;
+
+  @ApiProperty({
+    example: 'Software Engineer at Google',
+    description: 'Current work/job',
+    required: false,
+  })
+  @IsOptional()
+  @IsString()
+  @MaxLength(255)
+  current_work?: string;
+
+  @ApiProperty({
+    example: 'Stanford University',
+    description: 'School/University',
+    required: false,
+  })
+  @IsOptional()
+  @IsString()
+  @MaxLength(255)
+  school?: string;
+
+  @ApiProperty({
+    example: ['Long-term relationship', 'Marriage'],
+    description: 'What user is looking for',
+    type: [String],
+    required: false,
+  })
+  @IsOptional()
+  @IsArray()
+  @IsString({ each: true })
+  looking_for?: string[];
+
+  @ApiProperty({
+    example: ['Dog', 'Cat'],
+    description: 'Pets user has',
+    type: [String],
+    required: false,
+  })
+  @IsOptional()
+  @IsArray()
+  @IsString({ each: true })
+  pets?: string[];
+
+  @ApiProperty({
+    example: 'Want someday',
+    description: 'Children preference',
+    required: false,
+  })
+  @IsOptional()
+  @IsString()
+  @MaxLength(100)
+  children?: string;
+
+  @ApiProperty({
+    example: 'Aries',
+    description: 'Astrological sign',
+    required: false,
+  })
+  @IsOptional()
+  @IsString()
+  @MaxLength(50)
+  astrological_sign?: string;
+
+  @ApiProperty({
+    example: 'Christian',
+    description: 'Religion',
+    required: false,
+  })
+  @IsOptional()
+  @IsString()
+  @MaxLength(100)
+  religion?: string;
+
+  @ApiProperty({
+    example: 'Bachelors Degree',
+    description: 'Education level',
+    required: false,
+  })
+  @IsOptional()
+  @IsString()
+  @MaxLength(100)
+  education?: string;
+
+  @ApiProperty({
+    example: '5\'10"',
+    description: 'Height',
+    required: false,
+  })
+  @IsOptional()
+  @IsString()
+  @MaxLength(50)
+  height?: string;
+
+  @ApiProperty({
+    example: 'Athletic',
+    description: 'Body type',
+    required: false,
+  })
+  @IsOptional()
+  @IsString()
+  @MaxLength(50)
+  body_type?: string;
+
+  @ApiProperty({
+    example: 'Often',
+    description: 'Exercise frequency',
+    required: false,
+  })
+  @IsOptional()
+  @IsString()
+  @MaxLength(50)
+  exercise?: string;
+
+  @ApiProperty({
+    example: 'Socially',
+    description: 'Drinking habits',
+    required: false,
+  })
+  @IsOptional()
+  @IsString()
+  @MaxLength(50)
+  drink?: string;
+
+  @ApiProperty({
+    example: 'No',
+    description: 'Smoking habits',
+    required: false,
+  })
+  @IsOptional()
+  @IsString()
+  @MaxLength(50)
+  smoker?: string;
+
+  @ApiProperty({
+    example: 'Never',
+    description: 'Marijuana usage',
+    required: false,
+  })
+  @IsOptional()
+  @IsString()
+  @MaxLength(50)
+  marijuana?: string;
+
+  @ApiProperty({
+    example: [
+      { url: 'https://example.com/photo1.jpg', order: 0 },
+      { url: 'https://example.com/photo2.jpg', order: 1 }
+    ],
+    description: 'User photos (replaces all existing photos)',
+    type: 'array',
+    required: false,
+  })
+  @IsOptional()
+  @IsArray()
+  photos?: Array<{ url: string; order: number }>;
 }
