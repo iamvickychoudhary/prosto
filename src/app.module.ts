@@ -62,10 +62,12 @@ import { RequestIdMiddleware } from '@core/middleware/request-id.middleware';
     QueueModule,
   ],
   providers: [
+    /* DISABLE RATE LIMITING
     {
       provide: APP_GUARD,
       useClass: ThrottlerGuard,
     },
+    */
   ],
 })
 export class AppModule implements NestModule {
