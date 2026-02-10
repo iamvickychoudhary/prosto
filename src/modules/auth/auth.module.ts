@@ -5,8 +5,10 @@ import { TypeOrmModule } from '@nestjs/typeorm';
 import { AppConfigService } from '@config/app-config.service';
 import { AuthService } from './services/auth.service';
 import { OtpService } from './services/otp.service';
+import { ForgotPasswordService } from './services/forgot-password.service';
 import { AuthController } from './controllers/auth.controller';
 import { LoginController } from './controllers/login.controller';
+import { ForgotPasswordController } from './controllers/forgot-password.controller';
 import { JwtStrategy } from './strategies/jwt.strategy';
 import { JwtRefreshStrategy } from './strategies/jwt-refresh.strategy';
 import { OtpEntity } from './entities/otp.entity';
@@ -23,6 +25,7 @@ import { EmailModule } from '@modules/email/email.module';
  * - Auth guards
  * - Login/Register/Refresh flows
  * - OTP-based authentication
+ * - Password recovery
  */
 @Module({
   imports: [
@@ -40,8 +43,8 @@ import { EmailModule } from '@modules/email/email.module';
     UserModule,
     EmailModule,
   ],
-  controllers: [AuthController, LoginController],
-  providers: [AuthService, OtpService, OtpRepository, JwtStrategy, JwtRefreshStrategy],
+  controllers: [AuthController, LoginController, ForgotPasswordController],
+  providers: [AuthService, OtpService, ForgotPasswordService, OtpRepository, JwtStrategy, JwtRefreshStrategy],
   exports: [AuthService, OtpService, JwtModule],
 })
-export class AuthModule {}
+export class AuthModule { }

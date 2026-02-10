@@ -107,12 +107,38 @@ export class OtpService {
       role: user.role,
     });
 
+    // Return complete user data
     return {
       user: {
         id: user.id,
         email: user.email,
         phone: user.phone ? `${user.countryCode}${user.phone}` : undefined,
+        country_code: user.countryCode,
         first_name: user.firstName,
+        last_name: user.lastName,
+        full_name: user.fullName,
+        role: user.role,
+        status: user.status,
+        avatar_url: user.avatarUrl,
+        email_verified: user.emailVerified,
+        email_verified_at: user.emailVerifiedAt,
+        last_login_at: user.lastLoginAt,
+        gender: user.gender,
+        seeking: user.seeking,
+        date_of_birth: user.dateOfBirth,
+        age: user.age,
+        latitude: user.latitude,
+        longitude: user.longitude,
+        location_skipped: user.locationSkipped,
+        photos: user.photos?.map(photo => ({
+          id: photo.id,
+          url: photo.photoUrl,
+          order: photo.photoOrder,
+          is_primary: photo.isPrimary,
+          created_at: photo.createdAt,
+        })) || [],
+        created_at: user.createdAt,
+        updated_at: user.updatedAt,
       },
       access_token: accessToken,
     };
