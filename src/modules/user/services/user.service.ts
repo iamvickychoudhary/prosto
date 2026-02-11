@@ -147,16 +147,39 @@ export class UserService {
   async getList(currentUserId: string, limit: number = 20): Promise<SimpleUserDto[]> {
     const users = await this.userRepository.findAvailableUsers(currentUserId, limit);
 
-    return users.map(user => ({
-      id: user.id,
-      email: user.email,
-      firstName: user.firstName,
-      lastName: user.lastName,
-      fullName: user.fullName,
-      avatarUrl: user.avatarUrl,
-      age: user.age ?? undefined, // Handle null vs undefined
-      gender: user.gender,
-    }));
+    return users.map(user => {
+      let avatarUrl = user.avatarUrl;
+
+      if (user.photos && user.photos.length > 0) {
+        // 1. Try to find primary photo
+        const primaryPhoto = user.photos.find(p => p.isPrimary);
+        if (primaryPhoto) {
+          avatarUrl = primaryPhoto.photoUrl;
+        } else {
+          // 2. Try to find photo with order 0
+          const orderZeroPhoto = user.photos.find(p => p.photoOrder === 0);
+          if (orderZeroPhoto) {
+            avatarUrl = orderZeroPhoto.photoUrl;
+          } else {
+            // 3. Fallback to first photo by order
+            // Create a copy to sort to avoid mutating original array
+            const sortedPhotos = [...user.photos].sort((a, b) => a.photoOrder - b.photoOrder);
+            avatarUrl = sortedPhotos[0].photoUrl;
+          }
+        }
+      }
+
+      return {
+        id: user.id,
+        email: user.email,
+        firstName: user.firstName,
+        lastName: user.lastName,
+        fullName: user.fullName,
+        avatarUrl,
+        age: user.age ?? undefined, // Handle null vs undefined
+        gender: user.gender,
+      };
+    });
   }
 
   /**
