@@ -117,7 +117,11 @@ export class ProfileService {
   /**
    * Update existing user profile (after registration)
    */
-  async updateUserProfile(userId: string, dto: UpdateProfileDto): Promise<UserEntity> {
+  async updateUserProfile(
+    userId: string,
+    dto: UpdateProfileDto,
+    files?: Array<Express.Multer.File>,
+  ): Promise<UserEntity> {
     const userRepo = this.dataSource.getRepository(UserEntity);
 
     // Check if user exists
@@ -174,8 +178,50 @@ export class ProfileService {
     // Update user
     await userRepo.update(userId, updateData);
 
-    // Handle photos update if provided
-    if (dto.photos !== undefined && Array.isArray(dto.photos)) {
+    // Handle photo files upload if provided
+    if (files && files.length > 0) {
+      const userPhotoRepo = this.dataSource.getRepository(UserPhotoEntity);
+
+      // Get current photo count
+      const currentPhotoCount = await userPhotoRepo.count({ where: { userId } });
+
+      // Check if adding new photos would exceed the limit
+      if (currentPhotoCount + files.length > MAX_PHOTOS_ALLOWED) {
+        throw new BadRequestException(
+          createErrorResponse(
+            ErrorCode.MAX_PHOTOS_EXCEEDED,
+            `Cannot upload ${files.length} photos. Current: ${currentPhotoCount}, Max: ${MAX_PHOTOS_ALLOWED}`,
+          ),
+        );
+      }
+
+      // Get the next order number (append after existing photos)
+      const maxOrderResult = await userPhotoRepo
+        .createQueryBuilder('photo')
+        .select('MAX(photo.photoOrder)', 'maxOrder')
+        .where('photo.userId = :userId', { userId })
+        .getRawOne();
+
+      let nextOrder = (maxOrderResult?.maxOrder ?? -1) + 1;
+
+      // Upload and create new photos (append to existing)
+      for (const file of files) {
+        // In production, upload to cloud storage (S3, GCS, etc.)
+        // For now, generate a placeholder URL
+        const photoUrl = `https://storage.example.com/photos/${userId}/${Date.now()}-${file.originalname}`;
+
+        const photo = userPhotoRepo.create({
+          userId,
+          photoUrl,
+          photoOrder: nextOrder,
+          isPrimary: currentPhotoCount === 0 && nextOrder === 0, // First photo is primary only if no existing photos
+        });
+        await userPhotoRepo.save(photo);
+        nextOrder++;
+      }
+    }
+    // Handle photos update from DTO if provided (for backward compatibility)
+    else if (dto.photos !== undefined && Array.isArray(dto.photos)) {
       const userPhotoRepo = this.dataSource.getRepository(UserPhotoEntity);
 
       // Delete all existing photos
@@ -196,6 +242,55 @@ export class ProfileService {
     // Return updated user with photos
     const updatedUser = await userRepo.findOne({ where: { id: userId }, relations: ['photos'] });
     return updatedUser!;
+  }
+
+  /**
+   * Delete user photo (for existing users)
+   */
+  async deleteUserPhoto(
+    userId: string,
+    photoId: string,
+  ): Promise<{ deletedPhotoId: string; photoCount: number }> {
+    const userRepo = this.dataSource.getRepository(UserEntity);
+    const userPhotoRepo = this.dataSource.getRepository(UserPhotoEntity);
+
+    // Check if user exists
+    const user = await userRepo.findOne({ where: { id: userId } });
+    if (!user) {
+      throw new NotFoundException(createErrorResponse(ErrorCode.USER_NOT_FOUND));
+    }
+
+    // Find the photo
+    const photo = await userPhotoRepo.findOne({
+      where: { id: photoId, userId },
+    });
+
+    if (!photo) {
+      throw new NotFoundException(createErrorResponse(ErrorCode.PHOTO_NOT_FOUND));
+    }
+
+    // Delete the photo
+    await userPhotoRepo.remove(photo);
+
+    // If the deleted photo was primary, set the first remaining photo as primary
+    if (photo.isPrimary) {
+      const firstPhoto = await userPhotoRepo.findOne({
+        where: { userId },
+        order: { photoOrder: 'ASC' },
+      });
+
+      if (firstPhoto) {
+        firstPhoto.isPrimary = true;
+        await userPhotoRepo.save(firstPhoto);
+      }
+    }
+
+    const photoCount = await userPhotoRepo.count({ where: { userId } });
+
+    return {
+      deletedPhotoId: photoId,
+      photoCount,
+    };
   }
 
   /**

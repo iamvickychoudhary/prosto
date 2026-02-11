@@ -118,12 +118,47 @@ export class ProfileController {
   @Patch('user/:userId')
   @Public()
   @HttpCode(HttpStatus.OK)
+  @UseInterceptors(AnyFilesInterceptor())
   @ApiOperation({
     summary: 'Update user profile',
-    description: 'Update existing user profile with extended fields. Use this endpoint for updating profiles after registration is complete.',
+    description: 'Update existing user profile with extended fields and photos. Use this endpoint for updating profiles after registration is complete.',
   })
   @ApiParam({ name: 'userId', description: 'User ID' })
-  @ApiBody({ type: UpdateProfileDto })
+  @ApiConsumes('multipart/form-data')
+  @ApiBody({
+    schema: {
+      type: 'object',
+      properties: {
+        gender: { type: 'string', example: 'woman' },
+        current_work: { type: 'string', example: 'Senior Software Engineer' },
+        school: { type: 'string', example: 'MIT' },
+        date_of_birth: { type: 'string', format: 'date', example: '1995-10-11' },
+        about_me: { type: 'string', example: 'this is my about' },
+        first_name: { type: 'string', example: 'John' },
+        seeking: { type: 'string', example: 'man' },
+        latitude: { type: 'number', example: 40.7128 },
+        longitude: { type: 'number', example: -74.006 },
+        location_skipped: { type: 'boolean', example: false },
+        looking_for: { type: 'array', items: { type: 'string' } },
+        pets: { type: 'array', items: { type: 'string' } },
+        children: { type: 'string', example: 'Want someday' },
+        astrological_sign: { type: 'string', example: 'Aries' },
+        religion: { type: 'string', example: 'Christian' },
+        education: { type: 'string', example: 'Bachelors Degree' },
+        height: { type: 'string', example: '5\'10"' },
+        body_type: { type: 'string', example: 'Athletic' },
+        exercise: { type: 'string', example: 'Often' },
+        drink: { type: 'string', example: 'Socially' },
+        smoker: { type: 'string', example: 'No' },
+        marijuana: { type: 'string', example: 'Never' },
+        photos: {
+          type: 'array',
+          items: { type: 'string', format: 'binary' },
+          description: 'Photo files to upload',
+        },
+      },
+    },
+  })
   @ApiResponse({
     status: 200,
     description: SuccessMessages[SuccessCode.PROFILE_UPDATED],
@@ -131,9 +166,52 @@ export class ProfileController {
   })
   async updateUserProfile(
     @Param('userId', ParseUUIDPipe) userId: string,
-    @Body() dto: UpdateProfileDto,
+    @Body() body: any,
+    @UploadedFiles() files: Array<Express.Multer.File>,
   ) {
-    const user = await this.profileService.updateUserProfile(userId, dto);
+    // Parse the body data
+    const dto: UpdateProfileDto = {};
+
+    // Map form fields to DTO
+    if (body.first_name !== undefined) dto.first_name = body.first_name;
+    if (body.gender !== undefined) dto.gender = body.gender;
+    if (body.seeking !== undefined) dto.seeking = body.seeking;
+    if (body.date_of_birth !== undefined) dto.date_of_birth = body.date_of_birth;
+    if (body.latitude !== undefined) dto.latitude = parseFloat(body.latitude);
+    if (body.longitude !== undefined) dto.longitude = parseFloat(body.longitude);
+    if (body.location_skipped !== undefined) dto.location_skipped = body.location_skipped === 'true' || body.location_skipped === true;
+    if (body.about_me !== undefined) dto.about_me = body.about_me;
+    if (body.current_work !== undefined) dto.current_work = body.current_work;
+    if (body.school !== undefined) dto.school = body.school;
+    if (body.looking_for !== undefined) dto.looking_for = Array.isArray(body.looking_for) ? body.looking_for : [body.looking_for];
+    if (body.pets !== undefined) dto.pets = Array.isArray(body.pets) ? body.pets : [body.pets];
+    if (body.children !== undefined) dto.children = body.children;
+    if (body.astrological_sign !== undefined) dto.astrological_sign = body.astrological_sign;
+    if (body.religion !== undefined) dto.religion = body.religion;
+    if (body.education !== undefined) dto.education = body.education;
+    if (body.height !== undefined) dto.height = body.height;
+    if (body.body_type !== undefined) dto.body_type = body.body_type;
+    if (body.exercise !== undefined) dto.exercise = body.exercise;
+    if (body.drink !== undefined) dto.drink = body.drink;
+    if (body.smoker !== undefined) dto.smoker = body.smoker;
+    if (body.marijuana !== undefined) dto.marijuana = body.marijuana;
+
+    // Validate and process uploaded photo files
+    if (files && files.length > 0) {
+      const allowedMimeTypes = ['image/jpeg', 'image/png', 'image/webp'];
+      const maxSize = 5 * 1024 * 1024; // 5MB
+
+      for (const file of files) {
+        if (!allowedMimeTypes.includes(file.mimetype)) {
+          throw new BadRequestException(createErrorResponse(ErrorCode.INVALID_FILE_TYPE));
+        }
+        if (file.size > maxSize) {
+          throw new BadRequestException(createErrorResponse(ErrorCode.FILE_SIZE_EXCEEDED));
+        }
+      }
+    }
+
+    const user = await this.profileService.updateUserProfile(userId, dto, files);
 
     const response: Record<string, unknown> = { user_id: user.id };
 
@@ -172,7 +250,14 @@ export class ProfileController {
     if (dto.marijuana !== undefined) response.marijuana = user.marijuana;
 
     // Include photos if they were updated
-    if (dto.photos !== undefined) {
+    if (files && files.length > 0) {
+      response.photos = user.photos?.map(photo => ({
+        id: photo.id,
+        url: photo.photoUrl,
+        order: photo.photoOrder,
+        is_primary: photo.isPrimary,
+      })) ?? [];
+    } else if (dto.photos !== undefined) {
       response.photos = user.photos?.map(photo => ({
         id: photo.id,
         url: photo.photoUrl,
@@ -182,6 +267,38 @@ export class ProfileController {
     }
 
     return withMessage(response, SuccessMessages[SuccessCode.PROFILE_UPDATED]);
+  }
+
+  /**
+   * Delete user photo (for existing users)
+   */
+  @Delete('user/:userId/photos/:photoId')
+  @Public()
+  @HttpCode(HttpStatus.OK)
+  @ApiOperation({
+    summary: 'Delete user photo',
+    description: 'Delete a photo from an existing user profile. If the deleted photo was primary, the first remaining photo will become primary.',
+  })
+  @ApiParam({ name: 'userId', description: 'User ID' })
+  @ApiParam({ name: 'photoId', description: 'Photo ID to delete' })
+  @ApiResponse({
+    status: 200,
+    description: SuccessMessages[SuccessCode.PHOTO_DELETED],
+    type: PhotoDeleteResponseDto,
+  })
+  async deleteUserPhoto(
+    @Param('userId', ParseUUIDPipe) userId: string,
+    @Param('photoId', ParseUUIDPipe) photoId: string,
+  ) {
+    const result = await this.profileService.deleteUserPhoto(userId, photoId);
+
+    return withMessage(
+      {
+        deleted_photo_id: result.deletedPhotoId,
+        photo_count: result.photoCount,
+      },
+      SuccessMessages[SuccessCode.PHOTO_DELETED],
+    );
   }
 
   /**
