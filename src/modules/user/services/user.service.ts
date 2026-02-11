@@ -4,6 +4,7 @@ import { UserEntity } from '../entities/user.entity';
 import { CreateUserDto } from '../dto/create-user.dto';
 import { UpdateUserDto } from '../dto/update-user.dto';
 import { UserResponseDto } from '../dto/user-response.dto';
+import { SimpleUserDto } from '../dto/simple-user.dto';
 import { PaginationDto, PaginatedResult } from '@common/dto/pagination.dto';
 import {
   EntityNotFoundException,
@@ -18,7 +19,7 @@ import {
  */
 @Injectable()
 export class UserService {
-  constructor(private readonly userRepository: UserRepository) {}
+  constructor(private readonly userRepository: UserRepository) { }
 
   /**
    * Find user by ID
@@ -138,6 +139,24 @@ export class UserService {
    */
   async getStatistics() {
     return this.userRepository.getStatistics();
+  }
+
+  /**
+   * Get available users (for stack/feed)
+   */
+  async getList(currentUserId: string, limit: number = 20): Promise<SimpleUserDto[]> {
+    const users = await this.userRepository.findAvailableUsers(currentUserId, limit);
+
+    return users.map(user => ({
+      id: user.id,
+      email: user.email,
+      firstName: user.firstName,
+      lastName: user.lastName,
+      fullName: user.fullName,
+      avatarUrl: user.avatarUrl,
+      age: user.age ?? undefined, // Handle null vs undefined
+      gender: user.gender,
+    }));
   }
 
   /**

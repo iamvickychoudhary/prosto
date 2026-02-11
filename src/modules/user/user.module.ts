@@ -5,6 +5,7 @@ import { UserService } from './services/user.service';
 import { UserRepository } from './repositories/user.repository';
 import { UserEntity } from './entities/user.entity';
 import { UserPhotoEntity } from './entities/user-photo.entity';
+import { UserInteractionEntity } from './entities/user-interaction.entity';
 
 /**
  * User Module
@@ -18,9 +19,9 @@ import { UserPhotoEntity } from './entities/user-photo.entity';
  * - DTOs for input/output validation
  */
 @Module({
-  imports: [TypeOrmModule.forFeature([UserEntity, UserPhotoEntity])],
+  imports: [TypeOrmModule.forFeature([UserEntity, UserPhotoEntity, UserInteractionEntity])],
   controllers: [UserController],
   providers: [UserService, UserRepository],
   exports: [UserService],
 })
-export class UserModule {}
+export class UserModule { }

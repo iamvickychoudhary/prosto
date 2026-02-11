@@ -17,10 +17,12 @@ import { UserService } from '../services/user.service';
 import { CreateUserDto } from '../dto/create-user.dto';
 import { UpdateUserDto } from '../dto/update-user.dto';
 import { UserResponseDto } from '../dto/user-response.dto';
+import { SimpleUserDto } from '../dto/simple-user.dto';
 import { PaginationDto } from '@common/dto/pagination.dto';
 import { JwtAuthGuard } from '@modules/auth/guards/jwt-auth.guard';
 import { RolesGuard } from '@modules/auth/guards/roles.guard';
 import { Roles } from '@modules/auth/decorators/roles.decorator';
+import { CurrentUser } from '@modules/auth/decorators/current-user.decorator';
 import { Public } from '@modules/auth/decorators/public.decorator';
 import { UserRole } from '@common/enums/user-role.enum';
 import { ParseUUIDPipe } from '@core/pipes/validation.pipe';
@@ -50,6 +52,13 @@ export class UserController {
   @ApiPaginatedResponse(UserResponseDto)
   async findAll(@Query() pagination: PaginationDto) {
     return this.userService.findAll(pagination);
+  }
+
+  @Get('list')
+  @ApiOperation({ summary: 'Get list of users (excluding self and interactions)' })
+  @ApiStandardResponse(SimpleUserDto, { isArray: true })
+  async getList(@CurrentUser('sub') userId: string) {
+    return this.userService.getList(userId);
   }
 
   @Get('search')

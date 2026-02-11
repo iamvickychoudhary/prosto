@@ -14,7 +14,7 @@ import {
 /**
  * Standard API Response wrapper for Swagger documentation
  */
-export const ApiStandardResponse = <TModel extends Type>(model: TModel) => {
+export const ApiStandardResponse = <TModel extends Type>(model: TModel, options?: { isArray?: boolean }) => {
   return applyDecorators(
     ApiExtraModels(model),
     ApiOkResponse({
@@ -23,7 +23,12 @@ export const ApiStandardResponse = <TModel extends Type>(model: TModel) => {
           {
             properties: {
               success: { type: 'boolean', example: true },
-              data: { $ref: getSchemaPath(model) },
+              data: options?.isArray
+                ? {
+                  type: 'array',
+                  items: { $ref: getSchemaPath(model) },
+                }
+                : { $ref: getSchemaPath(model) },
               meta: {
                 type: 'object',
                 properties: {

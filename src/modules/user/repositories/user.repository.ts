@@ -3,6 +3,7 @@ import { InjectRepository } from '@nestjs/typeorm';
 import { Repository } from 'typeorm';
 import { UserEntity } from '../entities/user.entity';
 import { BaseRepository } from '@database/repositories/base.repository';
+import { UserInteractionEntity } from '../entities/user-interaction.entity';
 import { UserRole } from '@common/enums/user-role.enum';
 import { UserStatus } from '@common/enums/user-status.enum';
 
@@ -98,5 +99,28 @@ export class UserRepository extends BaseRepository<UserEntity> {
     });
 
     return { total, active, verified };
+  }
+
+  /**
+   * Find available users (excluding current user and interacted users)
+   */
+  async findAvailableUsers(currentUserId: string, limit: number = 20): Promise<UserEntity[]> {
+    return this.repository
+      .createQueryBuilder('user')
+      .leftJoinAndSelect('user.photos', 'photos')
+      .where('user.id != :currentUserId', { currentUserId })
+      .andWhere((qb) => {
+        const subQuery = qb
+          .subQuery()
+          .select('1')
+          .from(UserInteractionEntity, 'interaction')
+          .where('interaction.actorId = :currentUserId')
+          .andWhere('interaction.targetId = user.id')
+          .getQuery();
+        return `NOT EXISTS ${subQuery}`;
+      })
+      .orderBy('user.createdAt', 'DESC')
+      .take(limit)
+      .getMany();
   }
 }
